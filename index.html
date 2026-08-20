@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>医疗日程检索</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:#dde3ec;display:flex;justify-content:center;align-items:stretch;
+  color:#22314e;font-size:14px;
+}
+#app{
+  width:100%;max-width:480px;height:100%;
+  background:#f2f5fa;display:flex;flex-direction:column;position:relative;overflow:hidden;
+}
+#header{background:#fff;box-shadow:0 1px 6px rgba(31,58,110,.08);z-index:10;flex-shrink:0}
+.header-row{display:flex;align-items:center;padding:10px 12px;gap:10px}
+.seg{display:flex;background:#eef1f7;border-radius:8px;padding:3px;flex-shrink:0}
+.seg button{border:none;background:transparent;padding:6px 16px;border-radius:6px;font-size:14px;color:#5b6b85;cursor:pointer}
+.seg button.active{background:#3B82F6;color:#fff;font-weight:600}
+.hospital-btn{display:flex;align-items:center;gap:4px;background:#eef4ff;border:1px solid #d6e4ff;color:#2563eb;padding:6px 10px;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600;max-width:190px}
+.hospital-btn .hname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hospital-btn .arrow{font-size:10px;flex-shrink:0}
+.spacer{flex:1}
+.icon-btn{border:none;background:#eef1f7;color:#4b5a74;padding:6px 10px;border-radius:8px;font-size:13px;cursor:pointer}
+.icon-btn.primary{background:#3B82F6;color:#fff}
+.search-box{flex:1;display:flex;align-items:center;background:#f2f5fa;border-radius:8px;padding:0 6px 0 10px;height:34px;border:1px solid #e2e8f3;min-width:0}
+.search-box input{flex:1;border:none;outline:none;background:transparent;font-size:14px;color:#22314e;min-width:0}
+.search-box .cal-btn{border:none;background:#eef4ff;color:#2563eb;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;flex-shrink:0}
+.date-bar{display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 12px 10px;flex-wrap:wrap}
+.date-text{font-size:16px;font-weight:700;cursor:pointer}
+.date-tag{font-size:12px;color:#3B82F6;background:#eef4ff;border-radius:6px;padding:2px 8px;font-weight:600}
+.date-tag.yesterday{color:#8a94a8;background:#eef1f7}
+.date-tag.tomorrow{color:#16a34a;background:#ecfdf3}
+.back-today{font-size:12px;color:#2563eb;cursor:pointer;text-decoration:underline}
+.cal-link{font-size:12px;color:#2563eb;background:#eef4ff;border:1px solid #d6e4ff;border-radius:6px;padding:3px 8px;cursor:pointer}
+.page{flex:1;display:none;flex-direction:column;min-height:0}
+.page.active{display:flex}
+.page-body{flex:1;display:flex;min-height:0}
+.col-list{width:20%;min-width:76px;background:#e9eef7;overflow-y:auto;flex-shrink:0;border-right:1px solid #dfe6f2}
+.col-item{padding:12px 6px;text-align:center;font-size:13px;color:#3d4c66;cursor:pointer;border-bottom:1px solid #e2e8f3;word-break:break-all}
+.col-item.active{background:#3B82F6;color:#fff;font-weight:600}
+.card-area{flex:1;overflow-y:auto;padding:10px;min-width:0}
+.empty{text-align:center;color:#8a94a8;padding:40px 10px;font-size:13px;line-height:2}
+.card{background:#fff;border-radius:10px;padding:10px;margin-bottom:10px;box-shadow:0 1px 4px rgba(31,58,110,.06);display:flex;gap:10px}
+.card.clickable{cursor:pointer}
+.avatar{width:48px;height:48px;border-radius:50%;flex-shrink:0;overflow:hidden;background:linear-gradient(135deg,#bfd6ff,#7fa8f5);display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:600}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.card-body{flex:1;min-width:0}
+.card-name{display:flex;align-items:center;gap:6px}
+.card-name .name{font-size:15px;font-weight:700}
+.rank-badge{font-size:11px;color:#2563eb;background:#eef4ff;border:1px solid #d6e4ff;border-radius:6px;padding:1px 6px;flex-shrink:0}
+.card-line{font-size:12px;color:#5b6b85;margin-top:4px;line-height:1.5;word-break:break-all}
+.visited-row{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
+.visited-label{font-size:12px;color:#5b6b85}
+.visited-status{font-size:11px;color:#16a34a;background:#ecfdf3;border-radius:6px;padding:1px 6px}
+.switch{position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;inset:0;background:#c8d1df;border-radius:12px;transition:.2s}
+.slider:before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.switch input:checked+.slider{background:#3B82F6}
+.switch input:checked+.slider:before{transform:translateX(20px)}
+.chips{padding:6px 12px 0;display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0}
+.chip{display:flex;align-items:center;gap:6px;background:#eef4ff;border:1px solid #d6e4ff;color:#2563eb;border-radius:8px;padding:4px 8px;font-size:12px}
+.chip button{border:none;background:none;color:#2563eb;font-size:12px;cursor:pointer;padding:0}
+.fab{position:absolute;right:16px;bottom:70px;width:48px;height:48px;border-radius:50%;background:#3B82F6;color:#fff;border:none;font-size:24px;box-shadow:0 4px 12px rgba(37,99,235,.4);cursor:pointer;z-index:5;display:none}
+#tabbar{display:flex;background:#fff;border-top:1px solid #e2e8f3;flex-shrink:0}
+.tab{flex:1;text-align:center;padding:8px 0 10px;font-size:12px;color:#8a94a8;cursor:pointer;border:none;background:#fff}
+.tab.active{color:#3B82F6;font-weight:600}
+.tab .tab-dot{display:block;width:6px;height:6px;border-radius:50%;background:#3B82F6;margin:0 auto 4px;opacity:0}
+.tab.active .tab-dot{opacity:1}
+.modal-mask{position:fixed;inset:0;background:rgba(15,30,60,.45);display:none;align-items:center;justify-content:center;z-index:100}
+.modal-mask.show{display:flex}
+.modal-panel{width:calc(100% - 24px);max-width:480px;max-height:86%;overflow-y:auto;background:#fff;border-radius:16px;padding:14px}
+.modal-title{display:flex;justify-content:space-between;align-items:center;font-size:16px;font-weight:700;margin-bottom:10px}
+.modal-title button{border:none;background:#eef1f7;width:26px;height:26px;border-radius:50%;cursor:pointer;color:#5b6b85;flex-shrink:0}
+.cal-head{display:flex;align-items:center;justify-content:space-between;padding:4px 0 10px}
+.cal-head .cal-nav{border:none;background:#eef1f7;width:32px;height:32px;border-radius:8px;font-size:16px;cursor:pointer;color:#3d4c66}
+.cal-title{font-size:16px;font-weight:700}
+.week-row{display:flex;margin-bottom:4px}
+.week-row span{flex:1;text-align:center;font-size:12px;color:#8a94a8;padding:4px 0}
+.cal-grid{display:flex;flex-wrap:wrap}
+.cal-cell{width:14.2857%;padding:4px;display:flex;flex-direction:column;align-items:center;cursor:pointer}
+.cal-cell .day{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;color:#22314e}
+.cal-cell.today .day{border:1px solid #3B82F6}
+.cal-cell.selected .day{background:#3B82F6;color:#fff;font-weight:700}
+.dots{display:flex;gap:2px;height:5px;margin-top:2px}
+.dot{width:5px;height:5px;border-radius:50%;display:inline-block}
+.dot-out{background:#3B82F6}
+.dot-ward{background:#16a34a}
+.cal-foot{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid #eef1f7}
+.legend{display:flex;gap:14px;font-size:12px;color:#5b6b85}
+.form-item{margin-bottom:12px}
+.form-label{font-size:12px;color:#5b6b85;margin-bottom:4px;font-weight:600}
+.form-item input[type=text],.form-item input[type=date],.form-item select,.form-item textarea{
+  width:100%;border:1px solid #dfe6f2;border-radius:8px;padding:9px 10px;font-size:14px;outline:none;background:#fff;color:#22314e;font-family:inherit
+}
+.form-item textarea{height:60px;resize:none}
+.form-item input:focus,.form-item textarea:focus{border-color:#3B82F6}
+.photo-upload{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.photo-upload .avatar{width:64px;height:64px;font-size:26px;cursor:pointer}
+.photo-upload input[type=file]{display:none}
+.photo-tip{font-size:12px;color:#8a94a8;margin-top:4px}
+.date-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.date-chip{display:flex;align-items:center;gap:4px;background:#eef4ff;border:1px solid #d6e4ff;color:#2563eb;border-radius:8px;padding:3px 8px;font-size:12px}
+.date-chip button{border:none;background:none;color:#2563eb;cursor:pointer;font-size:12px;padding:0;line-height:1}
+.btn-row{display:flex;gap:10px;margin-top:6px}
+.btn{border:none;border-radius:8px;padding:10px;font-size:14px;cursor:pointer;flex:1;font-weight:600}
+.btn-primary{background:#3B82F6;color:#fff}
+.btn-ghost{background:#eef1f7;color:#4b5a74}
+.btn-danger{background:#fee2e2;color:#dc2626}
+.m-section{margin-bottom:16px}
+.m-section h4{font-size:13px;color:#3d4c66;margin-bottom:8px;border-left:3px solid #3B82F6;padding-left:8px}
+.m-row{display:flex;gap:8px;margin-bottom:8px}
+.m-row input{flex:1;border:1px solid #dfe6f2;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;min-width:0}
+.m-row input:focus{border-color:#3B82F6}
+.m-row button,.m-item button{border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;background:#eef4ff;color:#2563eb;flex-shrink:0}
+.m-del{background:#fee2e2;color:#dc2626}
+.m-item{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.m-item .m-idx{width:20px;text-align:center;color:#8a94a8;font-size:12px;flex-shrink:0}
+.m-item input{flex:1;border:1px solid #dfe6f2;border-radius:8px;padding:6px 8px;font-size:13px;outline:none;min-width:0}
+.m-item input:focus{border-color:#3B82F6}
+.m-move{background:#f2f5fa;color:#4b5a74}
+.m-note{font-size:12px;color:#8a94a8;margin-top:6px}
+#hospitalMenu{position:absolute;top:46px;left:12px;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(15,30,60,.15);display:none;z-index:200;min-width:180px;overflow:hidden;border:1px solid #e2e8f3}
+#hospitalMenu.show{display:block}
+#hospitalMenu .menu-item{padding:10px 14px;font-size:13px;cursor:pointer;color:#22314e;border-bottom:1px solid #f2f5fa;white-space:nowrap}
+#hospitalMenu .menu-item:hover{background:#f2f6ff}
+#hospitalMenu .menu-item.active{color:#2563eb;font-weight:600}
+#toast{position:fixed;left:50%;top:45%;transform:translateX(-50%);background:rgba(15,30,60,.85);color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;z-index:999;display:none;max-width:80%;text-align:center}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header"></div>
+
+  <div id="page-schedule" class="page active">
+    <div class="page-body">
+      <div class="col-list" id="schedCols"></div>
+      <div class="card-area" id="schedCards"></div>
+    </div>
+  </div>
+
+  <div id="page-search" class="page">
+    <div class="chips" id="searchChips"></div>
+    <div class="page-body">
+      <div class="col-list" id="searchCols"></div>
+      <div class="card-area" id="searchCards"></div>
+    </div>
+  </div>
+
+  <button class="fab" id="fabAdd" onclick="addDoctor()">＋</button>
+
+  <div id="tabbar">
+    <button class="tab active" id="tab-schedule" onclick="switchTab('schedule')"><span class="tab-dot"></span>日程</button>
+    <button class="tab" id="tab-search" onclick="switchTab('search')"><span class="tab-dot"></span>查找</button>
+  </div>
+
+  <div id="hospitalMenu"></div>
+</div>
+
+<div class="modal-mask" id="modal-calendar" onclick="if(event.target===this)closeModal('modal-calendar')">
+  <div class="modal-panel" style="max-width:360px">
+    <div class="modal-title">选择日期<button onclick="closeModal('modal-calendar')">✕</button></div>
+    <div class="cal-head">
+      <button class="cal-nav" onclick="calPrev()">‹</button>
+      <div class="cal-title" id="calTitle"></div>
+      <button class="cal-nav" onclick="calNext()">›</button>
+    </div>
+    <div class="week-row"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div class="cal-foot">
+      <div class="legend">
+        <span><span class="dot dot-out"></span>坐诊</span>
+        <span><span class="dot dot-ward"></span>病房</span>
+      </div>
+      <button class="icon-btn" onclick="calToday()">回到今天</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="modal-edit" onclick="if(event.target===this)closeModal('modal-edit')">
+  <div class="modal-panel">
+    <div class="modal-title" id="editTitle">医生资料<button onclick="closeModal('modal-edit')">✕</button></div>
+    <div class="photo-upload">
+      <div class="avatar" id="editAvatar" onclick="document.getElementById('photoInput').click()"></div>
+      <input type="file" id="photoInput" accept="image/*" onchange="pickPhoto(this)">
+      <div>
+        <div style="font-weight:600">点击上传照片</div>
+        <div class="photo-tip">支持相机拍摄或相册选择</div>
+      </div>
+    </div>
+    <div class="form-item"><div class="form-label">医生姓名</div><input type="text" id="fName" placeholder="请输入姓名" oninput="onNameInput(this.value)"></div>
+    <div class="form-item"><div class="form-label">医生职级（名称可在 管理-职级 中修改）</div><select id="fRank"></select></div>
+    <div class="form-item"><div class="form-label">所属栏目</div><select id="fColumn"></select></div>
+    <div class="form-item"><div class="form-label">擅长科目</div><input type="text" id="fSpecialty" placeholder="如：心血管内科、高血压"></div>
+    <div class="form-item">
+      <div class="form-label">坐诊时间（录入后对应日程-门诊页）</div>
+      <div class="m-row" style="margin-bottom:0"><input type="date" id="fOutDate"><button onclick="addDate('out')">添加</button></div>
+      <div class="date-chips" id="fOutChips"></div>
+    </div>
+    <div class="form-item">
+      <div class="form-label">病房时间（录入后对应日程-病房页）</div>
+      <div class="m-row" style="margin-bottom:0"><input type="date" id="fWardDate"><button onclick="addDate('ward')">添加</button></div>
+      <div class="date-chips" id="fWardChips"></div>
+    </div>
+    <div class="form-item"><div class="form-label">备注</div><textarea id="fNotes" placeholder="选填"></textarea></div>
+    <div class="form-item">
+      <div class="visited-row" style="margin-top:0">
+        <span class="visited-label">是否访问过</span>
+        <label class="switch"><input type="checkbox" id="fVisited"><span class="slider"></span></label>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-danger" id="btnDelete" style="display:none" onclick="deleteDoctor()">删除</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-edit')">取消</button>
+      <button class="btn btn-primary" onclick="saveDoctor()">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="modal-manage" onclick="if(event.target===this)closeModal('modal-manage')">
+  <div class="modal-panel">
+    <div class="modal-title">管理设置<button onclick="closeModal('modal-manage')">✕</button></div>
+    <div class="m-section">
+      <h4>医院</h4>
+      <div class="m-row">
+        <select id="mHospitalSelect" onchange="manageSwitchHospital(this.value)"></select>
+        <button class="m-del" onclick="manageDeleteHospital()">删除</button>
+      </div>
+      <div class="m-row"><input id="mHospitalRename" placeholder="输入新名称"><button onclick="manageRenameHospital()">重命名</button></div>
+      <div class="m-row"><input id="mHospitalAdd" placeholder="输入新医院名称"><button onclick="manageAddHospital()">添加</button></div>
+    </div>
+    <div class="m-section">
+      <h4>栏目（当前医院，可增删改）</h4>
+      <div id="mColumns"></div>
+      <div class="m-row"><input id="mColumnAdd" placeholder="输入栏目名称"><button onclick="manageAddColumn()">添加</button></div>
+      <div class="m-note">栏目会同步到日程页和查找页左侧的检索栏</div>
+    </div>
+    <div class="m-section">
+      <h4>职级（从上到下：高 → 低，可增删改名）</h4>
+      <div id="mRanks"></div>
+      <div class="m-row"><input id="mRankAdd" placeholder="输入职级名称"><button onclick="manageAddRank()">添加</button></div>
+      <div class="m-note">医生框按此顺序从高到低排列</div>
+    </div>
+    <div class="m-note">所有数据保存在本机浏览器中（localStorage），换设备不共享</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+  var DB_KEY = 'clinic_db_v1';
+  function $(id) { return document.getElementById(id); }
+
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function fmtDate(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function todayStr() { return fmtDate(new Date()); }
+  function addDays(str, n) {
+    var p = str.split('-');
+    return fmtDate(new Date(+p[0], +p[1] - 1, +p[2] + n));
+  }
+  function dateLabel(str) {
+    var t = todayStr();
+    if (str === t) return '今天';
+    if (str === addDays(t, 1)) return '明天';
+    if (str === addDays(t, -1)) return '昨天';
+    return '';
+  }
+  function dateTextCN(str) {
+    var p = str.split('-');
+    var d = new Date(+p[0], +p[1] - 1, +p[2]);
+    var wd = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+    return p[0] + '年' + (+p[1]) + '月' + (+p[2]) + '日 ' + wd[d.getDay()];
+  }
+  function uid() { return 'id' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function showToast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.style.display = 'block';
+    clearTimeout(t._timer);
+    t._timer = setTimeout(function () { t.style.display = 'none'; }, 1800);
+  }
+
+  function defaultDB() {
+    var t = todayStr(), y = addDays(t, -1), tm = addDays(t, 1);
+    return {
+      currentHospitalId: 'h1',
+      ranks: [
+        { id: 'r1', name: '主任医师' },
+        { id: 'r2', name: '副主任医师' },
+        { id: 'r3', name: '主治医师' },
+        { id: 'r4', name: '住院医师' }
+      ],
+      hospitals: [{
+        id: 'h1',
+        name: '第一医院',
+        columns: [
+          { id: 'c1', name: '内科' },
+          { id: 'c2', name: '外科' },
+          { id: 'c3', name: '儿科' }
+        ],
+        doctors: [
+          { id: uid(), columnId: 'c1', name: '李华', rankId: 'r1', specialty: '心血管内科、高血压', outpatientDates: [t, tm], wardDates: [t], notes: '每周二上午专家门诊', photo: '', visited: false },
+          { id: uid(), columnId: 'c1', name: '王芳', rankId: 'r2', specialty: '消化内科、胃肠镜', outpatientDates: [y, t], wardDates: [], notes: '', photo: '', visited: false },
+          { id: uid(), columnId: 'c2', name: '陈强', rankId: 'r3', specialty: '骨科、运动损伤', outpatientDates: [], wardDates: [tm], notes: '查房时携带病历', photo: '', visited: false }
+        ]
+      }]
+    };
+  }
+
+  function getDB() {
+    try {
+      var raw = localStorage.getItem(DB_KEY);
+      if (raw) {
+        var db = JSON.parse(raw);
+        if (db && db.hospitals && db.hospitals.length) return db;
+      }
+    } catch (e) {}
+    var def = defaultDB();
+    saveDB(def);
+    return def;
+  }
+  function saveDB(db) {
+    try {
+      localStorage.setItem(DB_KEY, JSON.stringify(db));
+    } catch (e) {
+      showToast('存储空间不足，可删除部分照片');
+    }
+  }
+  function currentHospital(db) {
+    db = db || getDB();
+    var h = db.hospitals.filter(function (x) { return x.id === db.currentHospitalId; })[0];
+    return h || db.hospitals[0];
+  }
+  function rankById(db, id) {
+    var r = db.ranks.filter(function (x) { return x.id === id; })[0];
+    return r ? r.name : '未定级';
+  }
+  function columnById(hospital, id) {
+    var c = hospital.columns.filter(function (x) { return x.id === id; })[0];
+    return c ? c.name : '未分类';
+  }
+  function rankIndex(db, id) {
+    for (var i = 0; i < db.ranks.length; i++) {
+      if (db.ranks[i].id === id) return i;
+    }
+    return 999;
+  }
+  function sortByRank(db, list) {
+    return list.slice().sort(function (a, b) {
+      return rankIndex(db, a.rankId) - rankIndex(db, b.rankId);
+    });
+  }
+  function doctorById(hospital, id) {
+    return hospital.doctors.filter(function (d) { return d.id === id; })[0];
+  }
+
+  var state = {
+    tab: 'schedule',
+    mode: 'out',
+    selectedDate: todayStr(),
+    schedCol: -1,
+    searchCol: -1,
+    keyword: '',
+    dateFilter: '',
+    editingId: ''
+  };
+  var cal = { year: 0, month: 0, mode: 'schedule' };
+  var editForm = null;
+
+  function cardHTML(isSched, d) {
+    var db = getDB();
+    var photo = d.photo
+      ? '<img src="' + d.photo + '" alt="">'
+      : esc((d.name || '?')[0]);
+    var outText = (d.outpatientDates || []).join('、') || '暂无';
+    var wardText = (d.wardDates || []).join('、') || '暂无';
+    var noteLine = '';
+    if (!isSched && d.notes) {
+      noteLine = '<div class="card-line">备注：' + esc(d.notes) + '</div>';
+    }
+    var visitCtrl;
+    if (isSched) {
+      visitCtrl = '<label class="switch"><input type="checkbox" ' + (d.visited ? 'checked' : '') + ' onchange="toggleVisited(\'' + d.id + '\', this.checked)"><span class="slider"></span></label>';
+    } else {
+      visitCtrl = d.visited
+        ? '<span class="visited-status">已访问</span>'
+        : '<span class="visited-status" style="background:#eef1f7;color:#8a94a8">未访问</span>';
+    }
+    return (
+      '<div class="card' + (isSched ? '' : ' clickable') + '"' + (isSched ? '' : ' onclick="editDoctor(\'' + d.id + '\')"') + '>' +
+        '<div class="avatar">' + photo + '</div>' +
+        '<div class="card-body">' +
+          '<div class="card-name"><span class="name">' + esc(d.name) + '</span><span class="rank-badge">' + esc(rankById(db, d.rankId)) + '</span></div>' +
+          '<div class="card-line">擅长：' + esc(d.specialty || '暂无') + '</div>' +
+          '<div class="card-line">坐诊：' + esc(outText) + '</div>' +
+          '<div class="card-line">病房：' + esc(wardText) + '</div>' +
+          noteLine +
+          '<div class="visited-row"><span class="visited-label">是否访问</span>' + visitCtrl + '</div>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function renderHeader() {
+    var db = getDB();
+    var hospital = currentHospital(db);
+    if (state.tab === 'schedule') {
+      var label = dateLabel(state.selectedDate);
+      var tagCls = label === '昨天' ? 'yesterday' : (label === '明天' ? 'tomorrow' : '');
+      $('header').innerHTML =
+        '<div class="header-row">' +
+          '<div class="seg">' +
+            '<button class="' + (state.mode === 'out' ? 'active' : '') + '" onclick="setMode(\'out\')">门诊</button>' +
+            '<button class="' + (state.mode === 'ward' ? 'active' : '') + '" onclick="setMode(\'ward\')">病房</button>' +
+          '</div>' +
+          '<button class="hospital-btn" onclick="openHospitalMenu(event)"><span class="hname">' + esc(hospital.name) + '</span><span class="arrow">▼</span></button>' +
+          '<span class="spacer"></span>' +
+        '</div>' +
+        '<div class="date-bar">' +
+          '<span class="date-text" onclick="openCalendar(\'schedule\')">' + dateTextCN(state.selectedDate) + '</span>' +
+          (label ? '<span class="date-tag ' + tagCls + '">' + label + '</span>' : '') +
+          (state.selectedDate !== todayStr() ? '<span class="back-today" onclick="backToday()">回今天</span>' : '') +
+          '<button class="cal-link" onclick="openCalendar(\'schedule\')">日历</button>' +
+        '</div>';
+    } else {
+      $('header').innerHTML =
+        '<div class="header-row">' +
+          '<button class="hospital-btn" onclick="openHospitalMenu(event)"><span class="hname">' + esc(hospital.name) + '</span><span class="arrow">▼</span></button>' +
+          '<div class="search-box">' +
+            '<input id="searchInput" type="text" placeholder="搜索姓名/科室/擅长/备注" value="' + esc(state.keyword) + '" oninput="onSearchInput(this.value)">' +
+            '<button class="cal-btn" onclick="openCalendar(\'search\')">日历</button>' +
+          '</div>' +
+          '<button class="icon-btn primary" onclick="openManage()">管理</button>' +
+        '</div>';
+    }
+  }
+
+  function renderScheduleBody() {
+    var db = getDB();
+    var hospital = currentHospital(db);
+    $('schedCols').innerHTML =
+      '<div class="col-item' + (state.schedCol === -1 ? ' active' : '') + '" onclick="setSchedCol(-1)">全部</div>' +
+      hospital.columns.map(function (c, i) {
+        return '<div class="col-item' + (state.schedCol === i ? ' active' : '') + '" onclick="setSchedCol(' + i + ')">' + esc(c.name) + '</div>';
+      }).join('');
+    var key = state.mode === 'out' ? 'outpatientDates' : 'wardDates';
+    var list = hospital.doctors.filter(function (d) {
+      return (d[key] || []).indexOf(state.selectedDate) !== -1;
+    });
+    if (state.schedCol >= 0) {
+      var colId = hospital.columns[state.schedCol].id;
+      list = list.filter(function (d) { return d.columnId === colId; });
+    }
+    list = sortByRank(db, list);
+    var modeName = state.mode === 'out' ? '坐诊' : '病房';
+    if (!list.length) {
+      $('schedCards').innerHTML = '<div class="empty">' + esc(hospital.name) + ' ' + dateTextCN(state.selectedDate) + '<br>' + modeName + '暂无安排<br><span style="font-size:12px;color:#8a94a8">可在「查找」页添加医生并录入时间</span></div>';
+    } else {
+      $('schedCards').innerHTML = list.map(function (d) { return cardHTML(true, d); }).join('');
+    }
+  }
+
+  function renderSearchBody() {
+    var db = getDB();
+    var hospital = currentHospital(db);
+    var chips = [];
+    if (state.dateFilter) {
+      chips.push('<div class="chip"><span>' + dateTextCN(state.dateFilter) + ' 有排班</span><button onclick="clearDateFilter()">✕</button></div>');
+    }
+    if (state.keyword) {
+      chips.push('<div class="chip"><span>关键词：' + esc(state.keyword) + '</span><button onclick="clearKeyword()">✕</button></div>');
+    }
+    $('searchChips').innerHTML = chips.join('');
+    $('searchCols').innerHTML =
+      '<div class="col-item' + (state.searchCol === -1 ? ' active' : '') + '" onclick="setSearchCol(-1)">全部</div>' +
+      hospital.columns.map(function (c, i) {
+        return '<div class="col-item' + (state.searchCol === i ? ' active' : '') + '" onclick="setSearchCol(' + i + ')">' + esc(c.name) + '</div>';
+      }).join('');
+    var list = hospital.doctors.slice();
+    if (state.searchCol >= 0) {
+      var colId = hospital.columns[state.searchCol].id;
+      list = list.filter(function (d) { return d.columnId === colId; });
+    }
+    var kw = state.keyword.trim().toLowerCase();
+    if (kw) {
+      list = list.filter(function (d) {
+        var s = [d.name, rankById(db, d.rankId), d.specialty, d.notes, columnById(hospital, d.columnId)]
+          .map(function (x) { return x || ''; }).join(' ').toLowerCase();
+        return s.indexOf(kw) !== -1;
+      });
+    }
+    if (state.dateFilter) {
+      list = list.filter(function (d) {
+        return (d.outpatientDates || []).indexOf(state.dateFilter) !== -1 ||
+               (d.wardDates || []).indexOf(state.dateFilter) !== -1;
+      });
+    }
+    list = sortByRank(db, list);
+    if (!list.length) {
+      $('searchCards').innerHTML = '<div class="empty">没有找到匹配的医生<br><span style="font-size:12px;color:#8a94a8">可点击右下角 ＋ 添加医生</span></div>';
+    } else {
+      $('searchCards').innerHTML = list.map(function (d) { return cardHTML(false, d); }).join('');
+    }
+  }
+
+  function renderAll() {
+    renderHeader();
+    renderScheduleBody();
+    renderSearchBody();
+  }
+
+  function openCalendar(mode) {
+    cal.mode = mode;
+    var base = mode === 'search' ? (state.dateFilter || todayStr()) : state.selectedDate;
+    var p = base.split('-');
+    cal.year = +p[0];
+    cal.month = +p[1] - 1;
+    renderCalendar();
+    openModal('modal-calendar');
+  }
+  function renderCalendar() {
+    var db = getDB();
+    var hospital = currentHospital(db);
+    var markers = {};
+    hospital.doctors.forEach(function (d) {
+      (d.outpatientDates || []).forEach(function (dt) {
+        if (!markers[dt]) markers[dt] = { out: 0, ward: 0 };
+        markers[dt].out += 1;
+      });
+      (d.wardDates || []).forEach(function (dt) {
+        if (!markers[dt]) markers[dt] = { out: 0, ward: 0 };
+        markers[dt].ward += 1;
+      });
+    });
+    var selected = cal.mode === 'search' ? state.dateFilter : state.selectedDate;
+    var first = new Date(cal.year, cal.month, 1).getDay();
+    var days = new Date(cal.year, cal.month + 1, 0).getDate();
+    var html = '';
+    for (var i = 0; i < first; i++) {
+      html += '<div class="cal-cell"></div>';
+    }
+    for (var d = 1; d <= days; d++) {
+      var date = cal.year + '-' + pad(cal.month + 1) + '-' + pad(d);
+      var m = markers[date] || {};
+      html +=
+        '<div class="cal-cell' + (date === todayStr() ? ' today' : '') + (date === selected ? ' selected' : '') + '" onclick="pickDate(\'' + date + '\')">' +
+          '<div class="day">' + d + '</div>' +
+          '<div class="dots">' +
+            (m.out ? '<span class="dot dot-out"></span>' : '') +
+            (m.ward ? '<span class="dot dot-ward"></span>' : '') +
+          '</div>' +
+        '</div>';
+    }
+    $('calTitle').textContent = cal.year + '年' + (cal.month + 1) + '月';
+    $('calGrid').innerHTML = html;
+  }
+  function calPrev() { cal.month--; if (cal.month < 0) { cal.month = 11; cal.year--; } renderCalendar(); }
+  function calNext() { cal.month++; if (cal.month > 11) { cal.month = 0; cal.year++; } renderCalendar(); }
+  function calToday() {
+    var p = todayStr().split('-');
+    cal.year = +p[0]; cal.month = +p[1] - 1;
+    renderCalendar();
+  }
+  function pickDate(date) {
+    if (cal.mode === 'search') {
+      state.dateFilter = date;
+    } else {
+      state.selectedDate = date;
+    }
+    closeModal('modal-calendar');
+    renderAll();
+  }
+
+  function editDoctor(id) {
+    state.editingId = id;
+    var db = getDB();
+    var hospital = currentHospital(db);
+    var d = doctorById(hospital, id);
+    editForm = {
+      id: d.id,
+      columnId: d.columnId || '',
+      name: d.name || '',
+      rankId: d.rankId || (db.ranks[0] ? db.ranks[0].id : ''),
+      specialty: d.specialty || '',
+      outpatientDates: (d.outpatientDates || []).slice(),
+      wardDates: (d.wardDates || []).slice(),
+      notes: d.notes || '',
+      photo: d.photo || '',
+      visited: !!d.visited
+    };
+    $('editTitle').innerHTML = '医生资料<button onclick="closeModal(\'modal-edit\')">✕</button>';
+    $('btnDelete').style.display = 'block';
+    renderEdit();
+    openModal('modal-edit');
+  }
+  function addDoctor() {
+    state.editingId = '';
+    var db = getDB();
+    var hospital = currentHospital(db);
+    editForm = {
+      id: '',
+      columnId: hospital.columns[0] ? hospital.columns[0].id : '',
+      name: '',
+      rankId: db.ranks[0] ? db.ranks[0].id : '',
+      specialty: '',
+      outpatientDates: [],
+      wardDates: [],
+      notes: '',
+      photo: '',
+      visited: false
+    };
+    $('editTitle').innerHTML = '新增医生<button onclick="closeModal(\'modal-edit\')">✕</button>';
+    $('btnDelete').style.display = 'none';
+    renderEdit();
+    openModal('modal-edit');
+  }
+  function renderEdit() {
+    var db = getDB();
+    var hospital = currentHospital(db);
+    var f = editForm;
+    $('editAvatar').innerHTML = f.photo
+      ? '<img src="' + f.photo + '" alt="">'
+      : esc((f.name || '?')[0]);
+    $('fName').value = f.name;
+    $('fRank').innerHTML = db.ranks.map(function (r) {
+      return '<option value="' + r.id + '"' + (r.id === f.rankId ? ' selected' : '') + '>' + esc(r.name) + '</option>';
+    }).join('');
+    var colOptions = hospital.columns.map(function (c) {
+      return '<option value="' + c.id + '"' + (c.id === f.columnId ? ' selected' : '') + '>' + esc(c.name) + '</option>';
+    }).join('');
+    var hasCol = hospital.columns.filter(function (c) { return c.id === f.columnId; }).length > 0;
+    $('fColumn').innerHTML = (hasCol ? '' : '<option value="">未分类</option>') + colOptions;
+    $('fSpecialty').value = f.specialty;
+    $('fOutDate').value = $('fOutDate').value || todayStr();
+    $('fWardDate').value = $('fWardDate').value || todayStr();
+    $('fOutChips').innerHTML = f.outpatientDates.map(function (dt, i) {
+      return '<span class="date-chip">' + dt + '<button onclick="removeDate(\'out\',' + i + ')">✕</button></span>';
+    }).join('');
+    $('fWardChips').innerHTML = f.wardDates.map(function (dt, i) {
+      return '<span class="date-chip">' + dt + '<button onclick="removeDate(\'ward\',' + i + ')">✕</button></span>';
+    }).join('');
+    $('fNotes').value = f.notes;
+    $('fVisited').checked = f.visited;
+  }
+  function onNameInput(v) {
+    if (!editForm) return;
+    editForm.name = v;
+    if (!editForm.photo) {
+      $('editAvatar').innerHTML = esc((v || '?')[0]);
+    }
+  }
+  function addDate(kind) {
+    var input = kind === 'out' ? $('fOutDate') : $('fWardDate');
+    var v = input.value;
+    if (!v) { showToast('请先选择日期'); return; }
+    var arr = editForm[kind === 'out' ? 'outpatientDates' : 'wardDates'];
+    if (arr.indexOf(v) === -1) arr.push(v);
+    arr.sort();
+    renderEdit();
+  }
+  function removeDate(kind, i) {
+    var arr = editForm[kind === 'out' ? 'outpatientDates' : 'wardDates'];
+    arr.splice(i, 1);
+    renderEdit();
+  }
+  function pickPhoto(input) {
+    var file = input.files && input.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var img = new Image();
+      img.onload = function () {
+        var maxW = 400;
+        var scale = Math.min(1, maxW / img.width);
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        editForm.photo = canvas.toDataURL('image/jpeg', 0.6);
+        renderEdit();
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+    input.value = '';
+  }
+  function saveDoctor() {
+    var f = editForm;
+    f.name = $('fName').value.trim();
+    f.rankId = $('fRank').value;
+    f.columnId = $('fColumn').value;
+    f.specialty = $('fSpecialty').value.trim();
+    f.notes = $('fNotes').value.trim();
+    f.visited = $('fVisited').checked;
+    if (!f.name) { showToast('请填写医生姓名'); return; }
+    var db = getDB();
+    var hospital = currentHospital(db);
+    if (state.editingId) {
+      var d = doctorById(hospital, state.editingId);
+      if (d) {
+        for (var k in f) { d[k] = f[k]; }
+      }
+    } else {
+      f.id = uid();
+      hospital.doctors.push(f);
+    }
+    saveDB(db);
+    closeModal('modal-edit');
+    showToast('已保存');
+    renderAll();
+  }
+  function deleteDoctor() {
+    if (!confirm('确定删除该医生吗？')) return;
+    var db = getDB();
+    var hospital = currentHospital(db);
+    hospital.doctors = hospital.doctors.filter(function (d) { return d.id !== state.editingId; });
+    saveDB(db);
+    closeModal('modal-edit');
+    showToast('已删除');
+    renderAll();
+  }
+
+  function openManage() {
+    renderManage();
+    openModal('modal-manage');
+  }
+  function renderManage() {
+    var db = getDB();
+    var hospital = currentHospital(db);
+    $('mHospitalSelect').innerHTML = db.hospitals.map(function (h) {
+      return '<option value="' + h.id + '"' + (h.id === db.currentHospitalId ? ' selected' : '') + '>' + esc(h.name) + '</option>';
+    }).join('');
+    $('mHospitalRename').value = hospital.name;
+    $('mColumns').innerHTML = hospital.columns.map(function (c, i) {
+      return '<div class="m-item"><span class="m-idx">' + (i + 1) + '</span>' +
+        '<input value="' + esc(c.name) + '" onchange="manageRenameColumn(\'' + c.id + '\', this.value)">' +
+        '<button class="m-del" onclick="manageDeleteColumn(\'' + c.id + '\')">删除</button></div>';
+    }).join('') || '<div class="m-note">暂无栏目，请在下方添加</div>';
+    $('mRanks').innerHTML = db.ranks.map(function (r, i) {
+      return '<div class="m-item"><span class="m-idx">' + (i + 1) + '</span>' +
+        '<input value="' + esc(r.name) + '" onchange="manageRenameRank(\'' + r.id + '\', this.value)">' +
+        '<button class="m-move" onclick="manageMoveRank(\'' + r.id + '\', -1)">↑</button>' +
+        '<button class="m-move" onclick="manageMoveRank(\'' + r.id + '\', 1)">↓</button>' +
+        '<button class="m-del" onclick="manageDeleteRank(\'' + r.id + '\')">删除</button></div>';
+    }).join('');
+  }
+  function manageSwitchHospital(id) {
+    var db = getDB();
+    db.currentHospitalId = id;
+    saveDB(db);
+    renderManage();
+    renderAll();
+  }
+  function manageRenameHospital() {
+    var v = $('mHospitalRename').value.trim();
+    if (!v) { showToast('请输入名称'); return; }
+    var db = getDB();
+    currentHospital(db).name = v;
+    saveDB(db);
+    renderManage();
+    renderAll();
+  }
+  function manageAddHospital() {
+    var v = $('mHospitalAdd').value.trim();
+    if (!v) { showToast('请输入医院名称'); return; }
+    var db = getDB();
+    var h = { id: uid(), name: v, columns: [], doctors: [] };
+    db.hospitals.push(h);
+    db.currentHospitalId = h.id;
+    $('mHospitalAdd').value = '';
+    saveDB(db);
+    renderManage();
+    renderAll();
+  }
+  function manageDeleteHospital() {
+    var db = getDB();
+    if (db.hospitals.length <= 1) { showToast('至少保留一个医院'); return; }
+    if (!confirm('确定删除当前医院及其所有医生吗？')) return;
+    db.hospitals = db.hospitals.filter(function (h) { return h.id !== db.currentHospitalId; });
+    db.currentHospitalId = db.hospitals[0].id;
+    saveDB(db);
+    renderManage();
+    renderAll();
+  }
+  function manageAddColumn() {
+    var v = $('mColumnAdd').value.trim();
+    if (!v) { showToast('请输入栏目名称'); return; }
+    var db = getDB();
+    currentHospital(db).columns.push({ id: uid(), name: v });
+    $('mColumnAdd').value = '';
+    saveDB(db);
+    renderManage();
+    renderAll();
+  }
+  function manageRenameColumn(cid, v) {
+    var db = getDB();
+    var c = currentHospital(db).columns.filter(function (x) { return x.id === cid; })[0];
+    if (c) c.name = v.trim() || c.name;
+    saveDB(db);
+    renderAll();
+  }
+  function manageDeleteColumn(cid) {
+    var db = getDB();
+    var hospital = currentHospital(db);
+    if (!confirm('删除该栏目？相关医生将变为未分类')) return;
+    hospital.columns = hospital.columns.filter(function (c) { return c.id !== cid; });
+    hospital.doctors.forEach(function (d) { if (d.columnId === cid) d.columnId = ''; });
+    saveDB(db);
+    renderManage();
+    renderAll();
+  }
+  function manageAddRank() {
+    var v = $('mRankAdd').value.trim();
+    if (!v) { showToast('请输入职级名称'); return; }
+    var db = getDB();
+    db.ranks.push({ id: uid(), name: v });
+    $('mRankAdd').value = '';
+    saveDB(db);
+    renderManage();
+    renderAll();
+  }
+  function manageRenameRank(rid, v) {
+    var db = getDB();
+    var r = db.ranks.filter(function (x) { return x.id === rid; })[0];
+    if (r) r.name = v.trim() || r.name;
+    saveDB(db);
+    renderAll();
+  }
+  function manageMoveRank(rid, dir) {
+    var db = getDB();
+    var i = -1;
+    for (var k = 0; k < db.ranks.length; k++) { if (db.ranks[k].id === rid) { i = k; break; } }
+    var j = i + dir;
+    if (i < 0 || j < 0 || j >= db.ranks.length) return;
+    var t = db.ranks[i];
+    db.ranks[i] = db.ranks[j];
+    db.ranks[j] = t;
+    saveDB(db);
+    renderManage();
+    renderAll();
+  }
+  function manageDeleteRank(rid) {
+    var db = getDB();
+    if (db.ranks.length <= 1) { showToast('至少保留一个职级'); return; }
+    if (!confirm('删除该职级？相关医生将变为未定级')) return;
+    db.ranks = db.ranks.filter(function (r) { return r.id !== rid; });
+    saveDB(db);
+    renderManage();
+    renderAll();
+  }
+
+  function openHospitalMenu(e) {
+    if (e) e.stopPropagation();
+    var db = getDB();
+    var menu = $('hospitalMenu');
+    menu.innerHTML = db.hospitals.map(function (h) {
+      return '<div class="menu-item' + (h.id === db.currentHospitalId ? ' active' : '') + '" onclick="switchHospital(\'' + h.id + '\')">' +
+        esc(h.name) + (h.id === db.currentHospitalId ? '（当前）' : '') + '</div>';
+    }).join('') +
+      '<div class="menu-item" onclick="renameHospitalDialog()">修改名称</div>' +
+      '<div class="menu-item" onclick="openManage()">管理设置</div>';
+    menu.classList.add('show');
+  }
+  document.addEventListener('click', function () {
+    $('hospitalMenu').classList.remove('show');
+  });
+  function switchHospital(id) {
+    var db = getDB();
+    db.currentHospitalId = id;
+    saveDB(db);
+    $('hospitalMenu').classList.remove('show');
+    renderAll();
+  }
+  function renameHospitalDialog() {
+    $('hospitalMenu').classList.remove('show');
+    var db = getDB();
+    var hospital = currentHospital(db);
+    var v = prompt('修改医院名称：', hospital.name);
+    if (v && v.trim()) {
+      hospital.name = v.trim();
+      saveDB(db);
+      renderAll();
+    }
+  }
+
+  function switchTab(tab) {
+    state.tab = tab;
+    $('page-schedule').className = 'page' + (tab === 'schedule' ? ' active' : '');
+    $('page-search').className = 'page' + (tab === 'search' ? ' active' : '');
+    $('tab-schedule').className = 'tab' + (tab === 'schedule' ? ' active' : '');
+    $('tab-search').className = 'tab' + (tab === 'search' ? ' active' : '');
+    $('fabAdd').style.display = tab === 'search' ? 'block' : 'none';
+    renderAll();
+  }
+  function setMode(m) { state.mode = m; renderAll(); }
+  function setSchedCol(i) { state.schedCol = i; renderScheduleBody(); }
+  function setSearchCol(i) { state.searchCol = i; renderSearchBody(); }
+  function onSearchInput(v) { state.keyword = v; renderSearchBody(); }
+  function clearKeyword() { state.keyword = ''; $('searchInput').value = ''; renderSearchBody(); }
+  function clearDateFilter() { state.dateFilter = ''; renderSearchBody(); }
+  function backToday() { state.selectedDate = todayStr(); renderAll(); }
+  function toggleVisited(id, checked) {
+    var db = getDB();
+    var d = doctorById(currentHospital(db), id);
+    if (!d) return;
+    d.visited = !!checked;
+    saveDB(db);
+    renderScheduleBody();
+  }
+
+  function openModal(id) { $(id).classList.add('show'); }
+  function closeModal(id) { $(id).classList.remove('show'); }
+
+  window.setMode = setMode;
+  window.setSchedCol = setSchedCol;
+  window.setSearchCol = setSearchCol;
+  window.switchTab = switchTab;
+  window.onSearchInput = onSearchInput;
+  window.clearKeyword = clearKeyword;
+  window.clearDateFilter = clearDateFilter;
+  window.openCalendar = openCalendar;
+  window.calPrev = calPrev;
+  window.calNext = calNext;
+  window.calToday = calToday;
+  window.pickDate = pickDate;
+  window.backToday = backToday;
+  window.openHospitalMenu = openHospitalMenu;
+  window.switchHospital = switchHospital;
+  window.renameHospitalDialog = renameHospitalDialog;
+  window.openManage = openManage;
+  window.manageSwitchHospital = manageSwitchHospital;
+  window.manageRenameHospital = manageRenameHospital;
+  window.manageAddHospital = manageAddHospital;
+  window.manageDeleteHospital = manageDeleteHospital;
+  window.manageAddColumn = manageAddColumn;
+  window.manageRenameColumn = manageRenameColumn;
+  window.manageDeleteColumn = manageDeleteColumn;
+  window.manageAddRank = manageAddRank;
+  window.manageRenameRank = manageRenameRank;
+  window.manageMoveRank = manageMoveRank;
+  window.manageDeleteRank = manageDeleteRank;
+  window.editDoctor = editDoctor;
+  window.addDoctor = addDoctor;
+  window.saveDoctor = saveDoctor;
+  window.deleteDoctor = deleteDoctor;
+  window.pickPhoto = pickPhoto;
+  window.onNameInput = onNameInput;
+  window.addDate = addDate;
+  window.removeDate = removeDate;
+  window.toggleVisited = toggleVisited;
+  window.openModal = openModal;
+  window.closeModal = closeModal;
+
+  getDB();
+  switchTab('schedule');
+})();
+</script>
+</body>
+</html>
